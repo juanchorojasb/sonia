@@ -1,0 +1,231 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================
+// MODELO DE USUARIOS
+// =====================
+model User {
+  id          String   @id @default(cuid())
+  clerkUserId String   @unique
+  email       String   @unique
+  nombre      String
+  rol         UserRole @default(CUIDADOR)
+  
+  // Campos adicionales según rol
+  especialidad String?
+  institucion  String?
+  relacionPaciente String?
+  
+  // Relaciones
+  pacientesCreados   Patient[] @relation("PacientesCreados")
+  pacientesAsignados Patient[] @relation("PacientesAsignados")
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum UserRole {
+  ADMIN
+  PROFESIONAL_SALUD
+  CUIDADOR
+  FAMILIAR
+}
+
+// =====================
+// BLOQUE 1: PERFIL DEL PACIENTE
+// =====================
+model Patient {
+  id                  String   @id @default(cuid())
+  clerkUserId         String
+  
+  // Relación con usuarios
+  creador             User     @relation("PacientesCreados", fields: [clerkUserId], references: [clerkUserId], onDelete: Cascade)
+  usuariosConAcceso   User[]   @relation("PacientesAsignados")
+  
+  // Información básica
+  nombre              String
+  edad                Int
+  fechaNacimiento     DateTime?
+  genero              String?
+  telefono            String?
+  email               String?
+  direccion           String?
+  ocupacionAnterior   String?
+  
+  // Contexto de vida
+  situacionSocial     String?
+  situacionEconomica  String?
+  contextoCultural    String?
+  
+  // Valores, preocupaciones y esperanzas
+  valoresPersonales   Json     @default("[]")
+  preocupaciones      Json     @default("[]")
+  esperanzas          Json     @default("[]")
+  
+  // Historia clínica resumida
+  diagnosticoPrincipal String?
+  condicionesCronicas  Json    @default("[]")
+  medicamentos         Json    @default("[]")
+  alergias             Json    @default("[]")
+  
+  // Relaciones
+  tratamientos        Treatment[]
+  cuidadores          Caregiver[]
+  equipoCuidado       CareTeamMember[]
+  evaluaciones        Evaluation[]
+  notas               Note[]
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// =====================
+// BLOQUE 2-9: PLAN DE TRATAMIENTO (LTCP)
+// =====================
+model Treatment {
+  id                      String   @id @default(cuid())
+  patientId               String   @unique
+  patient                 Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  // Bloque 2: Metas de Salud
+  metasClinicas           Json     @default("[]")
+  metasPersonales         Json     @default("[]")
+  metasCalidadVida        Json     @default("[]")
+  
+  // Bloque 3: Relación de Cuidado
+  relacionCuidado         String?
+  expectativasCuidador    String?
+  necesidadesEmocionales  String?
+  
+  // Bloque 4: Puntos de Cuidado
+  puntosCuidado           Json     @default("[]")
+  
+  // Bloque 5: Actividades de Cuidado
+  actividadesCuidado      Json     @default("[]")
+  
+  // Bloque 6: Recursos Clave
+  recursosHumanos         Json     @default("[]")
+  recursosFisicos         Json     @default("[]")
+  recursosIntelectuales   Json     @default("[]")
+  recursosFinancieros     Json     @default("[]")
+  
+  // Bloque 7: Calendario
+  calendario              Json     @default("[]")
+  
+  // Bloque 8: Evaluación y Seguimiento
+  indicadoresEvaluacion   Json     @default("[]")
+  criteriosExito          String?
+  metodosEvaluacion       String?
+  
+  // Bloque 9: Comunicación y Coordinación
+  contactosEquipo         Json     @default("[]")
+  canalesComunicacion     Json     @default("[]")
+  protocoloComunicacion   String?
+  frecuenciaReuniones     String?
+  
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+// =====================
+// CUIDADORES
+// =====================
+model Caregiver {
+  id                String   @id @default(cuid())
+  patientId         String
+  patient           Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  nombre            String
+  relacion          String
+  telefono          String?
+  email             String?
+  disponibilidad    String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// =====================
+// EQUIPO DE CUIDADO
+// =====================
+model CareTeamMember {
+  id                String   @id @default(cuid())
+  patientId         String
+  patient           Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  nombre            String
+  rol               String
+  especialidad      String?
+  institucion       String?
+  telefono          String?
+  email             String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// =====================
+// ACTIVIDADES DE CUIDADO
+// =====================
+model CareActivity {
+  id                String   @id @default(cuid())
+  
+  titulo            String
+  descripcion       String?
+  tipo              String
+  frecuencia        String
+  duracion          Int?
+  responsable       String?
+  
+  // Programación
+  horaInicio        DateTime?
+  horaFin           DateTime?
+  diasSemana        Json     @default("[]")
+  
+  // Estado
+  estado            String   @default("pendiente")
+  completada        Boolean  @default(false)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// =====================
+// EVALUACIONES
+// =====================
+model Evaluation {
+  id                String   @id @default(cuid())
+  patientId         String
+  patient           Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  fecha             DateTime @default(now())
+  tipo              String
+  resultado         String
+  observaciones     String?
+  realizadoPor      String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// =====================
+// NOTAS Y OBSERVACIONES
+// =====================
+model Note {
+  id                String   @id @default(cuid())
+  patientId         String
+  patient           Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  contenido         String
+  tipo              String   @default("general")
+  autor             String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
