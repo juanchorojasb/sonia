@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Save, X, Plus } from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
+import FieldWithAssistant from '@/components/forms/FieldWithAssistant';
+import TagFieldWithAssistant from '@/components/forms/TagFieldWithAssistant';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -27,7 +27,6 @@ export default function RelacionCuidadoPage({ params }: PageProps) {
   // Comunicación
   const [frecuenciaComunicacion, setFrecuenciaComunicacion] = useState('');
   const [mediosComunicacion, setMediosComunicacion] = useState<string[]>([]);
-  const [nuevoMedio, setNuevoMedio] = useState('');
   
   // Decisiones
   const [procesoDecisiones, setProcesoDecisiones] = useState('');
@@ -39,11 +38,8 @@ export default function RelacionCuidadoPage({ params }: PageProps) {
     params.then(p => setPatientId(p.id));
   }, [params]);
 
-  const agregarMedio = () => {
-    if (nuevoMedio.trim()) {
-      setMediosComunicacion([...mediosComunicacion, nuevoMedio.trim()]);
-      setNuevoMedio('');
-    }
+  const agregarMedio = (medio: string) => {
+    setMediosComunicacion([...mediosComunicacion, medio]);
   };
 
   const eliminarMedio = (index: number) => {
@@ -54,7 +50,6 @@ export default function RelacionCuidadoPage({ params }: PageProps) {
     e.preventDefault();
     setLoading(true);
 
-    // Buscar tratamiento existente o crear uno nuevo
     const treatmentData = {
       tipoRelacion,
       frecuenciaComunicacion,
@@ -64,7 +59,8 @@ export default function RelacionCuidadoPage({ params }: PageProps) {
     };
 
     try {
-      const response = await fetch(`/api/patients/${patientId}/treatments/update-relation`, {
+      // ✅ CORREGIDO: cambiar 'update-relation' a 'update-relacion'
+      const response = await fetch(`/api/patients/${patientId}/treatments/update-relacion`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(treatmentData),
@@ -159,34 +155,15 @@ export default function RelacionCuidadoPage({ params }: PageProps) {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label>Medios de Comunicación</Label>
-                <div className="flex gap-2">
-                  <Input 
-                    placeholder="Ej: Videollamada, teléfono, mensajería"
-                    value={nuevoMedio}
-                    onChange={(e) => setNuevoMedio(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), agregarMedio())}
-                  />
-                  <Button type="button" onClick={agregarMedio}>
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {mediosComunicacion.map((medio, idx) => (
-                    <Badge key={idx} variant="secondary" className="gap-1">
-                      {medio}
-                      <X 
-                        className="w-3 h-3 cursor-pointer" 
-                        onClick={() => eliminarMedio(idx)}
-                      />
-                    </Badge>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-500">
-                  Ejemplos: Videollamada semanal, WhatsApp diario, llamada telefónica mensual, visita presencial
-                </p>
-              </div>
+              <TagFieldWithAssistant
+                label="Medios de Comunicación"
+                values={mediosComunicacion}
+                onAdd={agregarMedio}
+                onRemove={eliminarMedio}
+                placeholder="Ej: Videollamada, teléfono, mensajería"
+                description="¿A través de qué medios se mantendrá el contacto?"
+                contextPrompt="Dame ejemplos de medios de comunicación efectivos para equipos de cuidados paliativos y familias"
+              />
             </CardContent>
           </Card>
 
@@ -199,11 +176,15 @@ export default function RelacionCuidadoPage({ params }: PageProps) {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Textarea 
-                rows={4}
-                placeholder="Describe cómo se tomarán las decisiones sobre tratamiento, medicamentos, procedimientos, etc. ¿Quién participa? ¿Cómo se llega a consenso?"
+              <FieldWithAssistant
+                label="Proceso de Decisiones"
+                name="procesoDecisiones"
                 value={procesoDecisiones}
-                onChange={(e) => setProcesoDecisiones(e.target.value)}
+                onChange={setProcesoDecisiones}
+                placeholder="Describe cómo se tomarán las decisiones sobre tratamiento, medicamentos, procedimientos, etc."
+                description="¿Quién participa? ¿Cómo se llega a consenso?"
+                contextPrompt="Describe un proceso claro y práctico de toma de decisiones compartida en cuidados paliativos, incluyendo quién participa, cómo se comunican las opciones, y cómo se llega a acuerdos. Máximo 4 líneas."
+                rows={4}
               />
               <p className="text-xs text-gray-500 mt-2">
                 Ejemplo: "Las decisiones sobre cambios en medicamentos se discutirán en consulta trimestral con el especialista, con la hija presente. Las decisiones urgentes se tomarán por teléfono con consentimiento verbal."
@@ -220,11 +201,15 @@ export default function RelacionCuidadoPage({ params }: PageProps) {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Textarea 
-                rows={4}
-                placeholder="Describe el rol de cada miembro de la familia o cuidador en el plan de cuidado"
+              <FieldWithAssistant
+                label="Roles y Responsabilidades"
+                name="rolFamilia"
                 value={rolFamilia}
-                onChange={(e) => setRolFamilia(e.target.value)}
+                onChange={setRolFamilia}
+                placeholder="Describe el rol de cada miembro de la familia o cuidador en el plan de cuidado"
+                description="Especifica tareas, responsabilidades y tipo de apoyo de cada persona"
+                contextPrompt="Describe roles específicos y realistas de diferentes miembros de la familia en el cuidado de un paciente paliativo. Incluye tareas prácticas, apoyo emocional y gestiones administrativas. Máximo 4 líneas."
+                rows={4}
               />
               <p className="text-xs text-gray-500 mt-2">
                 Ejemplo: "Hija: Acompaña a citas médicas y gestiona medicamentos. Vecina: Visita diaria para verificar bienestar. Nieto: Apoyo emocional telefónico semanal."

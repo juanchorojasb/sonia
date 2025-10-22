@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Save, ClipboardCheck, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Save, ClipboardCheck, TrendingUp, Plus, X } from 'lucide-react';
 import Link from 'next/link';
+import FieldWithAssistant from '@/components/forms/FieldWithAssistant';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -117,16 +117,16 @@ export default function EvaluacionPage({ params }: PageProps) {
               </div>
               <CardDescription>¿Cómo sabremos que el plan está funcionando?</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Definir Criterios de Éxito</Label>
-                <Textarea 
-                  placeholder="Ej: Reducción del dolor en 50%, mejora en movilidad, mayor independencia en actividades diarias..."
-                  value={criteriosExito}
-                  onChange={(e) => setCriteriosExito(e.target.value)}
-                  rows={4}
-                />
-              </div>
+            <CardContent>
+              <FieldWithAssistant
+                label="Definir Criterios de Éxito"
+                name="criteriosExito"
+                value={criteriosExito}
+                onChange={setCriteriosExito}
+                placeholder="Ej: Reducción del dolor en 50%, mejora en movilidad, mayor independencia en actividades diarias..."
+                contextPrompt="Define criterios de éxito claros y medibles para un plan de cuidados paliativos. Incluye aspectos clínicos, funcionales y de calidad de vida. Máximo 4 líneas."
+                rows={4}
+              />
             </CardContent>
           </Card>
 
@@ -141,23 +141,25 @@ export default function EvaluacionPage({ params }: PageProps) {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Nombre del Indicador</Label>
-                  <Input 
-                    placeholder="Ej: Nivel de dolor (escala 1-10)"
-                    value={nuevoIndicador.nombre}
-                    onChange={(e) => setNuevoIndicador({...nuevoIndicador, nombre: e.target.value})}
-                  />
-                </div>
+                <FieldWithAssistant
+                  label="Nombre del Indicador"
+                  name="nombre"
+                  value={nuevoIndicador.nombre}
+                  onChange={(value) => setNuevoIndicador({...nuevoIndicador, nombre: value})}
+                  placeholder="Ej: Nivel de dolor (escala 1-10)"
+                  fieldType="input"
+                  contextPrompt="Dame un ejemplo de indicador medible para cuidados paliativos"
+                />
                 
-                <div className="space-y-2">
-                  <Label>Valor Objetivo</Label>
-                  <Input 
-                    placeholder="Ej: Dolor < 3/10"
-                    value={nuevoIndicador.valorObjetivo}
-                    onChange={(e) => setNuevoIndicador({...nuevoIndicador, valorObjetivo: e.target.value})}
-                  />
-                </div>
+                <FieldWithAssistant
+                  label="Valor Objetivo"
+                  name="valorObjetivo"
+                  value={nuevoIndicador.valorObjetivo}
+                  onChange={(value) => setNuevoIndicador({...nuevoIndicador, valorObjetivo: value})}
+                  placeholder="Ej: Dolor < 3/10"
+                  fieldType="input"
+                  contextPrompt="Dame un ejemplo de valor objetivo específico y medible"
+                />
 
                 <div className="space-y-2">
                   <Label>Frecuencia de Medición</Label>
@@ -177,17 +179,19 @@ export default function EvaluacionPage({ params }: PageProps) {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Responsable de Medición</Label>
-                  <Input 
-                    placeholder="Ej: Enfermera, Cuidador"
-                    value={nuevoIndicador.responsable}
-                    onChange={(e) => setNuevoIndicador({...nuevoIndicador, responsable: e.target.value})}
-                  />
-                </div>
+                <FieldWithAssistant
+                  label="Responsable de Medición"
+                  name="responsable"
+                  value={nuevoIndicador.responsable}
+                  onChange={(value) => setNuevoIndicador({...nuevoIndicador, responsable: value})}
+                  placeholder="Ej: Enfermera, Cuidador"
+                  fieldType="input"
+                  contextPrompt="Dame un ejemplo de rol responsable de medir indicadores en cuidados paliativos"
+                />
               </div>
 
               <Button type="button" onClick={agregarIndicador} className="w-full">
+                <Plus className="w-4 h-4 mr-2" />
                 Agregar Indicador
               </Button>
             </CardContent>
@@ -218,7 +222,7 @@ export default function EvaluacionPage({ params }: PageProps) {
                           size="sm"
                           onClick={() => eliminarIndicador(idx)}
                         >
-                          Eliminar
+                          <X className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
@@ -234,16 +238,16 @@ export default function EvaluacionPage({ params }: PageProps) {
               <CardTitle>Métodos de Evaluación</CardTitle>
               <CardDescription>¿Cómo se medirán y registrarán los resultados?</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Describir Métodos</Label>
-                <Textarea 
-                  placeholder="Ej: Escalas de evaluación, cuestionarios, exámenes físicos, reportes del cuidador..."
-                  value={metodosEvaluacion}
-                  onChange={(e) => setMetodosEvaluacion(e.target.value)}
-                  rows={4}
-                />
-              </div>
+            <CardContent>
+              <FieldWithAssistant
+                label="Describir Métodos"
+                name="metodosEvaluacion"
+                value={metodosEvaluacion}
+                onChange={setMetodosEvaluacion}
+                placeholder="Ej: Escalas de evaluación, cuestionarios, exámenes físicos, reportes del cuidador..."
+                contextPrompt="Describe métodos prácticos y específicos para evaluar y registrar resultados en cuidados paliativos. Incluye herramientas, escalas y procesos. Máximo 4 líneas."
+                rows={4}
+              />
             </CardContent>
           </Card>
 

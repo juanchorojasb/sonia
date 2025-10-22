@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Save, X, Plus, CheckSquare } from 'lucide-react';
+import { ArrowLeft, Save, X, Plus, CheckSquare, Sparkles, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import FieldWithAssistant from '@/components/forms/FieldWithAssistant';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -27,6 +27,7 @@ export default function ActividadesPage({ params }: PageProps) {
   const router = useRouter();
   const [patientId, setPatientId] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [loadingAI, setLoadingAI] = useState(false);
   
   const [actividades, setActividades] = useState<Actividad[]>([]);
   const [nuevaActividad, setNuevaActividad] = useState<Actividad>({
@@ -49,6 +50,41 @@ export default function ActividadesPage({ params }: PageProps) {
 
   const eliminarActividad = (index: number) => {
     setActividades(actividades.filter((_, i) => i !== index));
+  };
+
+  // Generar actividades con IA
+  const generarActividadesIA = async () => {
+    setLoadingAI(true);
+    try {
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message: 'Dame 4 ejemplos de actividades clave para un plan de cuidados paliativos. Para cada actividad usa el formato: Tipo | Título | Descripción | Frecuencia. Tipos válidos: medicamento, cita, terapia, prueba, educacion, ejercicio. Frecuencias válidas: diaria, semanal, mensual. Separa cada actividad con línea nueva.',
+          context: 'Necesito actividades realistas y específicas para cuidados paliativos.'
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const actividadesIA = data.message
+          .split('\n')
+          .filter((line: string) => line.includes('|'))
+          .map((line: string) => {
+            const [tipo, titulo, descripcion, frecuencia] = line.split('|').map(s => s.trim());
+            return { tipo, titulo, descripcion, frecuencia };
+          })
+          .filter((a: any) => a.tipo && a.titulo && a.frecuencia);
+        
+        if (actividadesIA.length > 0) {
+          setActividades([...actividades, ...actividadesIA]);
+        }
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoadingAI(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,13 +135,31 @@ export default function ActividadesPage({ params }: PageProps) {
           
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <CheckSquare className="w-5 h-5 text-blue-600" />
-                <CardTitle>Actividades del Tratamiento</CardTitle>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="w-5 h-5 text-blue-600" />
+                  <div>
+                    <CardTitle>Actividades del Tratamiento</CardTitle>
+                    <CardDescription>
+                      Medicamentos, citas, terapias, pruebas y educación necesarias
+                    </CardDescription>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={generarActividadesIA}
+                  disabled={loadingAI}
+                >
+                  {loadingAI ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Sparkles className="w-4 h-4 mr-2" />
+                  )}
+                  Generar con IA
+                </Button>
               </div>
-              <CardDescription>
-                Medicamentos, citas, terapias, pruebas y educación necesarias
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
@@ -153,21 +207,26 @@ export default function ActividadesPage({ params }: PageProps) {
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <Label>Título/Nombre</Label>
-                  <Input 
-                    placeholder="Ej: Tomar Losartán 50mg, Cita con cardiólogo"
+                  <FieldWithAssistant
+                    label="Título/Nombre"
+                    name="titulo"
                     value={nuevaActividad.titulo}
-                    onChange={(e) => setNuevaActividad({...nuevaActividad, titulo: e.target.value})}
+                    onChange={(value) => setNuevaActividad({...nuevaActividad, titulo: value})}
+                    placeholder="Ej: Tomar Losartán 50mg, Cita con cardiólogo"
+                    fieldType="input"
+                    contextPrompt="Dame un ejemplo de título para una actividad de cuidados paliativos. Solo el título, una línea."
                   />
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                  <Label>Descripción (opcional)</Label>
-                  <Textarea 
-                    rows={2}
-                    placeholder="Detalles adicionales: dosis, horario, instrucciones especiales"
+                  <FieldWithAssistant
+                    label="Descripción (opcional)"
+                    name="descripcion"
                     value={nuevaActividad.descripcion}
-                    onChange={(e) => setNuevaActividad({...nuevaActividad, descripcion: e.target.value})}
+                    onChange={(value) => setNuevaActividad({...nuevaActividad, descripcion: value})}
+                    placeholder="Detalles adicionales: dosis, horario, instrucciones especiales"
+                    contextPrompt="Dame detalles específicos para una actividad de cuidados paliativos. 2-3 líneas máximo."
+                    rows={2}
                   />
                 </div>
               </div>

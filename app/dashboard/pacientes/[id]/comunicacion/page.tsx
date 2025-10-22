@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Save, MessageSquare, Users, Phone, Mail, X, Plus } from 'lucide-react';
 import Link from 'next/link';
+import FieldWithAssistant from '@/components/forms/FieldWithAssistant';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -143,42 +143,45 @@ export default function ComunicacionPage({ params }: PageProps) {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Nombre Completo</Label>
-                  <Input 
-                    placeholder="Ej: Dr. Juan Pérez"
-                    value={nuevoContacto.nombre}
-                    onChange={(e) => setNuevoContacto({...nuevoContacto, nombre: e.target.value})}
-                  />
-                </div>
+                <FieldWithAssistant
+                  label="Nombre Completo"
+                  name="nombre"
+                  value={nuevoContacto.nombre}
+                  onChange={(value) => setNuevoContacto({...nuevoContacto, nombre: value})}
+                  placeholder="Ej: Dr. Juan Pérez"
+                  fieldType="input"
+                  contextPrompt="Dame un ejemplo de nombre completo para un contacto del equipo de cuidados"
+                />
                 
-                <div className="space-y-2">
-                  <Label>Rol / Especialidad</Label>
-                  <Input 
-                    placeholder="Ej: Médico de cabecera"
-                    value={nuevoContacto.rol}
-                    onChange={(e) => setNuevoContacto({...nuevoContacto, rol: e.target.value})}
-                  />
-                </div>
+                <FieldWithAssistant
+                  label="Rol / Especialidad"
+                  name="rol"
+                  value={nuevoContacto.rol}
+                  onChange={(value) => setNuevoContacto({...nuevoContacto, rol: value})}
+                  placeholder="Ej: Médico de cabecera"
+                  fieldType="input"
+                  contextPrompt="Dame un ejemplo de rol o especialidad en cuidados paliativos"
+                />
 
-                <div className="space-y-2">
-                  <Label>Teléfono</Label>
-                  <Input 
-                    placeholder="Ej: +57 300 123 4567"
-                    value={nuevoContacto.telefono}
-                    onChange={(e) => setNuevoContacto({...nuevoContacto, telefono: e.target.value})}
-                  />
-                </div>
+                <FieldWithAssistant
+                  label="Teléfono"
+                  name="telefono"
+                  value={nuevoContacto.telefono}
+                  onChange={(value) => setNuevoContacto({...nuevoContacto, telefono: value})}
+                  placeholder="Ej: +57 300 123 4567"
+                  fieldType="input"
+                  contextPrompt="Dame un ejemplo de número de teléfono colombiano"
+                />
 
-                <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input 
-                    type="email"
-                    placeholder="ejemplo@correo.com"
-                    value={nuevoContacto.email}
-                    onChange={(e) => setNuevoContacto({...nuevoContacto, email: e.target.value})}
-                  />
-                </div>
+                <FieldWithAssistant
+                  label="Email"
+                  name="email"
+                  value={nuevoContacto.email}
+                  onChange={(value) => setNuevoContacto({...nuevoContacto, email: value})}
+                  placeholder="ejemplo@correo.com"
+                  fieldType="input"
+                  contextPrompt="Dame un ejemplo de correo electrónico profesional"
+                />
               </div>
 
               <Button type="button" onClick={agregarContacto} className="w-full">
@@ -269,24 +272,25 @@ export default function ComunicacionPage({ params }: PageProps) {
               <CardDescription>¿Cómo y cuándo se comunica el equipo?</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Descripción del Protocolo</Label>
-                <Textarea 
-                  placeholder="Ej: Reportes diarios por WhatsApp, llamadas semanales con el médico, actualizaciones inmediatas en emergencias..."
-                  value={protocoloComunicacion}
-                  onChange={(e) => setProtocoloComunicacion(e.target.value)}
-                  rows={4}
-                />
-              </div>
+              <FieldWithAssistant
+                label="Descripción del Protocolo"
+                name="protocoloComunicacion"
+                value={protocoloComunicacion}
+                onChange={setProtocoloComunicacion}
+                placeholder="Ej: Reportes diarios por WhatsApp, llamadas semanales con el médico, actualizaciones inmediatas en emergencias..."
+                contextPrompt="Describe un protocolo claro de comunicación para un equipo de cuidados paliativos. Incluye frecuencia, canales, tipo de información y escalamiento. Máximo 4 líneas."
+                rows={4}
+              />
 
-              <div className="space-y-2">
-                <Label>Frecuencia de Reuniones</Label>
-                <Input 
-                  placeholder="Ej: Reuniones semanales todos los lunes a las 10am"
-                  value={frecuenciaReuniones}
-                  onChange={(e) => setFrecuenciaReuniones(e.target.value)}
-                />
-              </div>
+              <FieldWithAssistant
+                label="Frecuencia de Reuniones"
+                name="frecuenciaReuniones"
+                value={frecuenciaReuniones}
+                onChange={setFrecuenciaReuniones}
+                placeholder="Ej: Reuniones semanales todos los lunes a las 10am"
+                fieldType="input"
+                contextPrompt="Dame un ejemplo de frecuencia y horario específico para reuniones del equipo"
+              />
             </CardContent>
           </Card>
 

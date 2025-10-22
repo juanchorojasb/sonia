@@ -5,50 +5,53 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Save, X } from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
+import FieldWithAssistant from '@/components/forms/FieldWithAssistant';
+import TagFieldWithAssistant from '@/components/forms/TagFieldWithAssistant';
 
 export default function NuevoPacientePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  
+  // Estados básicos
+  const [nombre, setNombre] = useState('');
+  const [edad, setEdad] = useState('');
+  const [genero, setGenero] = useState('');
+  const [telefono, setTelefono] = useState('');
+  const [email, setEmail] = useState('');
+  
+  // Estados de contexto
+  const [situacionSocial, setSituacionSocial] = useState('');
+  const [situacionEconomica, setSituacionEconomica] = useState('');
+  const [contextoCultural, setContextoCultural] = useState('');
+  const [ocupacionAnterior, setOcupacionAnterior] = useState('');
+  
+  // Estados de valores, preocupaciones y esperanzas
   const [valores, setValores] = useState<string[]>([]);
-  const [nuevoValor, setNuevoValor] = useState('');
   const [preocupaciones, setPreocupaciones] = useState<string[]>([]);
-  const [nuevaPreocupacion, setNuevaPreocupacion] = useState('');
   const [esperanzas, setEsperanzas] = useState<string[]>([]);
-  const [nuevaEsperanza, setNuevaEsperanza] = useState('');
 
-  const agregarValor = () => {
-    if (nuevoValor.trim()) {
-      setValores([...valores, nuevoValor.trim()]);
-      setNuevoValor('');
-    }
+  const agregarValor = (valor: string) => {
+    setValores([...valores, valor]);
   };
 
   const eliminarValor = (index: number) => {
     setValores(valores.filter((_, i) => i !== index));
   };
 
-  const agregarPreocupacion = () => {
-    if (nuevaPreocupacion.trim()) {
-      setPreocupaciones([...preocupaciones, nuevaPreocupacion.trim()]);
-      setNuevaPreocupacion('');
-    }
+  const agregarPreocupacion = (preocupacion: string) => {
+    setPreocupaciones([...preocupaciones, preocupacion]);
   };
 
   const eliminarPreocupacion = (index: number) => {
     setPreocupaciones(preocupaciones.filter((_, i) => i !== index));
   };
 
-  const agregarEsperanza = () => {
-    if (nuevaEsperanza.trim()) {
-      setEsperanzas([...esperanzas, nuevaEsperanza.trim()]);
-      setNuevaEsperanza('');
-    }
+  const agregarEsperanza = (esperanza: string) => {
+    setEsperanzas([...esperanzas, esperanza]);
   };
 
   const eliminarEsperanza = (index: number) => {
@@ -59,17 +62,16 @@ export default function NuevoPacientePage() {
     e.preventDefault();
     setLoading(true);
 
-    const formData = new FormData(e.currentTarget);
     const data = {
-      nombre: formData.get('nombre'),
-      edad: parseInt(formData.get('edad') as string),
-      genero: formData.get('genero'),
-      telefono: formData.get('telefono'),
-      email: formData.get('email'),
-      situacionSocial: formData.get('situacionSocial'),
-      situacionEconomica: formData.get('situacionEconomica'),
-      contextoCultural: formData.get('contextoCultural'),
-      ocupacionAnterior: formData.get('ocupacionAnterior'),
+      nombre,
+      edad: parseInt(edad),
+      genero,
+      telefono,
+      email,
+      situacionSocial,
+      situacionEconomica,
+      contextoCultural,
+      ocupacionAnterior,
       valoresPersonales: valores,
       preocupaciones: preocupaciones,
       esperanzas: esperanzas,
@@ -129,30 +131,29 @@ export default function NuevoPacientePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="nombre">Nombre Completo *</Label>
-                  <Input 
-                    id="nombre" 
-                    name="nombre" 
-                    placeholder="Ej: María García López"
-                    required 
-                  />
-                </div>
+                <FieldWithAssistant
+                  label="Nombre Completo *"
+                  name="nombre"
+                  value={nombre}
+                  onChange={setNombre}
+                  placeholder="Ej: María García López"
+                  fieldType="input"
+                  contextPrompt="Dame un ejemplo de nombre completo realista para una persona mayor latina. Solo el nombre, sin explicaciones."
+                />
 
-                <div className="space-y-2">
-                  <Label htmlFor="edad">Edad *</Label>
-                  <Input 
-                    id="edad" 
-                    name="edad" 
-                    type="number" 
-                    placeholder="Ej: 68"
-                    required 
-                  />
-                </div>
+                <FieldWithAssistant
+                  label="Edad *"
+                  name="edad"
+                  value={edad}
+                  onChange={setEdad}
+                  placeholder="Ej: 68"
+                  fieldType="input"
+                  contextPrompt="Dame un ejemplo de edad típica para un paciente de cuidados paliativos. Solo el número."
+                />
 
                 <div className="space-y-2">
                   <Label htmlFor="genero">Género</Label>
-                  <Select name="genero">
+                  <Select value={genero} onValueChange={setGenero}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar..." />
                     </SelectTrigger>
@@ -165,23 +166,25 @@ export default function NuevoPacientePage() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="telefono">Teléfono</Label>
-                  <Input 
-                    id="telefono" 
-                    name="telefono" 
-                    type="tel"
-                    placeholder="Ej: +57 300 123 4567"
-                  />
-                </div>
+                <FieldWithAssistant
+                  label="Teléfono"
+                  name="telefono"
+                  value={telefono}
+                  onChange={setTelefono}
+                  placeholder="Ej: +57 300 123 4567"
+                  fieldType="input"
+                  contextPrompt="Dame un ejemplo de número de teléfono móvil colombiano. Solo el número con formato."
+                />
 
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="email">Correo Electrónico</Label>
-                  <Input 
-                    id="email" 
-                    name="email" 
-                    type="email"
+                <div className="md:col-span-2">
+                  <FieldWithAssistant
+                    label="Correo Electrónico"
+                    name="email"
+                    value={email}
+                    onChange={setEmail}
                     placeholder="Ej: maria@email.com"
+                    fieldType="input"
+                    contextPrompt="Dame un ejemplo de correo electrónico simple y común. Solo el email."
                   />
                 </div>
               </div>
@@ -197,53 +200,49 @@ export default function NuevoPacientePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="situacionSocial">Situación Social</Label>
-                <Textarea 
-                  id="situacionSocial" 
-                  name="situacionSocial"
-                  placeholder="Ej: Vive sola, hija vive cerca pero trabaja tiempo completo"
-                  rows={3}
-                />
-                <p className="text-xs text-gray-500">
-                  ¿Con quién vive? ¿Tiene apoyo familiar?
-                </p>
-              </div>
+              <FieldWithAssistant
+                label="Situación Social"
+                name="situacionSocial"
+                value={situacionSocial}
+                onChange={setSituacionSocial}
+                placeholder="Ej: Vive sola, hija vive cerca pero trabaja tiempo completo"
+                description="¿Con quién vive? ¿Tiene apoyo familiar?"
+                contextPrompt="Genera un ejemplo realista de situación social para un paciente de cuidados paliativos en Colombia. Describe con quién vive, qué apoyo familiar tiene. Máximo 3 líneas."
+                rows={3}
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="situacionEconomica">Situación Económica</Label>
-                <Textarea 
-                  id="situacionEconomica" 
-                  name="situacionEconomica"
-                  placeholder="Ej: Ingresos fijos de pensión, sin mayores recursos"
-                  rows={3}
-                />
-                <p className="text-xs text-gray-500">
-                  Fuentes de ingreso, estabilidad financiera
-                </p>
-              </div>
+              <FieldWithAssistant
+                label="Situación Económica"
+                name="situacionEconomica"
+                value={situacionEconomica}
+                onChange={setSituacionEconomica}
+                placeholder="Ej: Ingresos fijos de pensión, sin mayores recursos"
+                description="Fuentes de ingreso, estabilidad financiera"
+                contextPrompt="Genera un ejemplo realista de situación económica para un paciente de cuidados paliativos en Colombia. Describe sus ingresos y estabilidad financiera. Máximo 3 líneas."
+                rows={3}
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="contextoCultural">Contexto Cultural</Label>
-                <Textarea 
-                  id="contextoCultural" 
-                  name="contextoCultural"
-                  placeholder="Ej: Católica practicante, tradiciones familiares importantes"
-                  rows={3}
-                />
-                <p className="text-xs text-gray-500">
-                  Creencias, prácticas culturales o religiosas relevantes
-                </p>
-              </div>
+              <FieldWithAssistant
+                label="Contexto Cultural"
+                name="contextoCultural"
+                value={contextoCultural}
+                onChange={setContextoCultural}
+                placeholder="Ej: Católica practicante, tradiciones familiares importantes"
+                description="Creencias, prácticas culturales o religiosas relevantes"
+                contextPrompt="Genera un ejemplo realista de contexto cultural para un paciente colombiano de cuidados paliativos. Describe creencias religiosas o prácticas culturales importantes. Máximo 3 líneas."
+                rows={3}
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="ocupacionAnterior">Ocupación Anterior</Label>
-                <Input 
-                  id="ocupacionAnterior" 
-                  name="ocupacionAnterior"
-                  placeholder="Ej: Maestra de primaria (jubilada)"
-                />
-              </div>
+              <FieldWithAssistant
+                label="Ocupación Anterior"
+                name="ocupacionAnterior"
+                value={ocupacionAnterior}
+                onChange={setOcupacionAnterior}
+                placeholder="Ej: Maestra de primaria (jubilada)"
+                description="Profesión u oficio antes de jubilarse o enfermarse"
+                contextPrompt="Dame un ejemplo de ocupación anterior común para una persona mayor en Colombia. Una línea."
+                fieldType="input"
+              />
             </CardContent>
           </Card>
 
@@ -257,88 +256,37 @@ export default function NuevoPacientePage() {
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Valores */}
-              <div className="space-y-2">
-                <Label>Valores Personales</Label>
-                <div className="flex gap-2">
-                  <Input 
-                    value={nuevoValor}
-                    onChange={(e) => setNuevoValor(e.target.value)}
-                    placeholder="Ej: Independencia, familia, dignidad"
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), agregarValor())}
-                  />
-                  <Button type="button" onClick={agregarValor}>Agregar</Button>
-                </div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {valores.map((valor, idx) => (
-                    <Badge key={idx} variant="secondary" className="gap-1">
-                      {valor}
-                      <X 
-                        className="w-3 h-3 cursor-pointer" 
-                        onClick={() => eliminarValor(idx)}
-                      />
-                    </Badge>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-500">
-                  ¿Qué es lo más importante para esta persona?
-                </p>
-              </div>
+              <TagFieldWithAssistant
+                label="Valores Personales"
+                values={valores}
+                onAdd={agregarValor}
+                onRemove={eliminarValor}
+                placeholder="Ej: Independencia, familia, dignidad"
+                description="¿Qué es lo más importante para esta persona?"
+                contextPrompt="Dame ejemplos de valores personales importantes para pacientes de cuidados paliativos"
+              />
 
               {/* Preocupaciones */}
-              <div className="space-y-2">
-                <Label>Preocupaciones Principales</Label>
-                <div className="flex gap-2">
-                  <Input 
-                    value={nuevaPreocupacion}
-                    onChange={(e) => setNuevaPreocupacion(e.target.value)}
-                    placeholder="Ej: Ser una carga, perder independencia"
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), agregarPreocupacion())}
-                  />
-                  <Button type="button" onClick={agregarPreocupacion}>Agregar</Button>
-                </div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {preocupaciones.map((preocupacion, idx) => (
-                    <Badge key={idx} variant="secondary" className="gap-1">
-                      {preocupacion}
-                      <X 
-                        className="w-3 h-3 cursor-pointer" 
-                        onClick={() => eliminarPreocupacion(idx)}
-                      />
-                    </Badge>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-500">
-                  ¿Qué le preocupa o le genera ansiedad?
-                </p>
-              </div>
+              <TagFieldWithAssistant
+                label="Preocupaciones Principales"
+                values={preocupaciones}
+                onAdd={agregarPreocupacion}
+                onRemove={eliminarPreocupacion}
+                placeholder="Ej: Ser una carga, perder independencia"
+                description="¿Qué le preocupa o le genera ansiedad?"
+                contextPrompt="Dame ejemplos de preocupaciones comunes en pacientes de cuidados paliativos"
+              />
 
               {/* Esperanzas */}
-              <div className="space-y-2">
-                <Label>Esperanzas y Aspiraciones</Label>
-                <div className="flex gap-2">
-                  <Input 
-                    value={nuevaEsperanza}
-                    onChange={(e) => setNuevaEsperanza(e.target.value)}
-                    placeholder="Ej: Volver a cuidar mi jardín, pasar tiempo con nietos"
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), agregarEsperanza())}
-                  />
-                  <Button type="button" onClick={agregarEsperanza}>Agregar</Button>
-                </div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {esperanzas.map((esperanza, idx) => (
-                    <Badge key={idx} variant="secondary" className="gap-1">
-                      {esperanza}
-                      <X 
-                        className="w-3 h-3 cursor-pointer" 
-                        onClick={() => eliminarEsperanza(idx)}
-                      />
-                    </Badge>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-500">
-                  ¿Qué espera lograr? ¿Cuáles son sus sueños?
-                </p>
-              </div>
+              <TagFieldWithAssistant
+                label="Esperanzas y Aspiraciones"
+                values={esperanzas}
+                onAdd={agregarEsperanza}
+                onRemove={eliminarEsperanza}
+                placeholder="Ej: Volver a cuidar mi jardín, pasar tiempo con nietos"
+                description="¿Qué espera lograr? ¿Cuáles son sus sueños?"
+                contextPrompt="Dame ejemplos de esperanzas y aspiraciones realistas para pacientes de cuidados paliativos"
+              />
             </CardContent>
           </Card>
 

@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Save, X, Plus } from 'lucide-react';
+import { ArrowLeft, Save, X, Plus, Sparkles, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import FieldWithAssistant from '@/components/forms/FieldWithAssistant';
+import TagFieldWithAssistant from '@/components/forms/TagFieldWithAssistant';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -19,6 +19,7 @@ export default function MetasSaludPage({ params }: PageProps) {
   const router = useRouter();
   const [patientId, setPatientId] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [loadingAI, setLoadingAI] = useState(false);
   
   // Metas Clínicas
   const [metasClinicas, setMetasClinicas] = useState<Array<{objetivo: string, valor: string}>>([]);
@@ -26,7 +27,6 @@ export default function MetasSaludPage({ params }: PageProps) {
   
   // Metas Personales
   const [metasPersonales, setMetasPersonales] = useState<string[]>([]);
-  const [nuevaMetaPersonal, setNuevaMetaPersonal] = useState('');
   
   // Calidad de Vida Deseada
   const [calidadVida, setCalidadVida] = useState('');
@@ -46,15 +46,48 @@ export default function MetasSaludPage({ params }: PageProps) {
     setMetasClinicas(metasClinicas.filter((_, i) => i !== index));
   };
 
-  const agregarMetaPersonal = () => {
-    if (nuevaMetaPersonal.trim()) {
-      setMetasPersonales([...metasPersonales, nuevaMetaPersonal.trim()]);
-      setNuevaMetaPersonal('');
-    }
+  const agregarMetaPersonal = (meta: string) => {
+    setMetasPersonales([...metasPersonales, meta]);
   };
 
   const eliminarMetaPersonal = (index: number) => {
     setMetasPersonales(metasPersonales.filter((_, i) => i !== index));
+  };
+
+  // Función para generar sugerencias de metas clínicas con IA
+  const generarMetasClinicasIA = async () => {
+    setLoadingAI(true);
+    try {
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message: 'Dame 3 ejemplos de metas clínicas comunes para pacientes de cuidados paliativos. Para cada una, dame el objetivo y el valor meta. Formato: "Objetivo | Valor". Separa cada meta con una nueva línea.',
+          context: 'Necesito ejemplos concretos y medibles de metas clínicas.'
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Parsear las metas del formato "Objetivo | Valor"
+        const metas = data.message
+          .split('\n')
+          .filter((line: string) => line.includes('|'))
+          .map((line: string) => {
+            const [objetivo, valor] = line.split('|').map(s => s.trim());
+            return { objetivo, valor };
+          })
+          .filter((meta: any) => meta.objetivo && meta.valor);
+        
+        if (metas.length > 0) {
+          setMetasClinicas([...metasClinicas, ...metas]);
+        }
+      }
+    } catch (error) {
+      console.error('Error al generar metas:', error);
+    } finally {
+      setLoadingAI(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -127,10 +160,28 @@ export default function MetasSaludPage({ params }: PageProps) {
           {/* Metas Clínicas */}
           <Card>
             <CardHeader>
-              <CardTitle>Metas Clínicas</CardTitle>
-              <CardDescription>
-                Objetivos médicos medibles (ej: presión arterial, glucosa, peso)
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Metas Clínicas</CardTitle>
+                  <CardDescription>
+                    Objetivos médicos medibles (ej: presión arterial, glucosa, peso)
+                  </CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={generarMetasClinicasIA}
+                  disabled={loadingAI}
+                >
+                  {loadingAI ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Sparkles className="w-4 h-4 mr-2" />
+                  )}
+                  Generar con IA
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
@@ -176,6 +227,10 @@ export default function MetasSaludPage({ params }: PageProps) {
                   </div>
                 ))}
               </div>
+              
+              <p className="text-xs text-gray-500">
+                💡 Ejemplos: Control de dolor (EVA &lt; 3/10), Nivel de glucosa (70-130 mg/dL), Peso estable (±2 kg)
+              </p>
             </CardContent>
           </Card>
 
@@ -187,28 +242,16 @@ export default function MetasSaludPage({ params }: PageProps) {
                 Objetivos funcionales y de calidad de vida del paciente
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Input 
-                  placeholder="Ej: Poder cuidar mi jardín sin cansarme"
-                  value={nuevaMetaPersonal}
-                  onChange={(e) => setNuevaMetaPersonal(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), agregarMetaPersonal())}
-                />
-                <Button type="button" onClick={agregarMetaPersonal}>Agregar</Button>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {metasPersonales.map((meta, idx) => (
-                  <Badge key={idx} variant="secondary" className="gap-1 py-2 px-3">
-                    {meta}
-                    <X 
-                      className="w-3 h-3 cursor-pointer" 
-                      onClick={() => eliminarMetaPersonal(idx)}
-                    />
-                  </Badge>
-                ))}
-              </div>
+            <CardContent>
+              <TagFieldWithAssistant
+                label="Metas Personales"
+                values={metasPersonales}
+                onAdd={agregarMetaPersonal}
+                onRemove={eliminarMetaPersonal}
+                placeholder="Ej: Poder cuidar mi jardín sin cansarme"
+                description="¿Qué actividades o logros son importantes para el paciente?"
+                contextPrompt="Dame ejemplos de metas personales realistas y significativas para pacientes de cuidados paliativos. Enfócate en actividades cotidianas, relaciones familiares y momentos especiales"
+              />
             </CardContent>
           </Card>
 
@@ -221,11 +264,15 @@ export default function MetasSaludPage({ params }: PageProps) {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Textarea 
-                rows={5}
-                placeholder="Describe cómo sería un día típico ideal para el paciente una vez alcanzadas sus metas..."
+              <FieldWithAssistant
+                label="Visión de Éxito"
+                name="calidadVida"
                 value={calidadVida}
-                onChange={(e) => setCalidadVida(e.target.value)}
+                onChange={setCalidadVida}
+                placeholder="Describe cómo sería un día típico ideal para el paciente una vez alcanzadas sus metas..."
+                description="Describe la vida diaria, actividades, relaciones y bienestar emocional deseado"
+                contextPrompt="Describe de manera realista y emotiva cómo sería un día ideal en la vida de un paciente de cuidados paliativos que ha alcanzado sus metas de salud y bienestar. Incluye detalles sobre actividades, familia y emociones. Máximo 5 líneas."
+                rows={5}
               />
             </CardContent>
           </Card>

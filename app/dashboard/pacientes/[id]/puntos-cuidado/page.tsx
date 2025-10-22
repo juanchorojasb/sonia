@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Save, X, Plus, MapPin, Smartphone } from 'lucide-react';
+import { ArrowLeft, Save, X, Plus, MapPin, Smartphone, Sparkles, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 interface PageProps {
@@ -30,6 +29,7 @@ export default function PuntosCuidadoPage({ params }: PageProps) {
   const router = useRouter();
   const [patientId, setPatientId] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [loadingAI, setLoadingAI] = useState(false);
   
   // Puntos físicos
   const [puntosAtencionFisicos, setPuntosAtencionFisicos] = useState<PuntoFisico[]>([]);
@@ -63,6 +63,41 @@ export default function PuntosCuidadoPage({ params }: PageProps) {
 
   const eliminarPlataforma = (index: number) => {
     setPlataformasDigitales(plataformasDigitales.filter((_, i) => i !== index));
+  };
+
+  // Generar sugerencias de puntos con IA
+  const generarPuntosIA = async () => {
+    setLoadingAI(true);
+    try {
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message: 'Dame 3 ejemplos de puntos de atención físicos comunes para pacientes de cuidados paliativos en Colombia. Para cada uno: Tipo | Nombre | Dirección. Separa con líneas.',
+          context: 'Necesito ejemplos realistas de lugares de atención.'
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const puntos = data.message
+          .split('\n')
+          .filter((line: string) => line.includes('|'))
+          .map((line: string) => {
+            const [tipo, nombre, direccion] = line.split('|').map(s => s.trim());
+            return { tipo, nombre, direccion };
+          })
+          .filter((p: any) => p.tipo && p.nombre);
+        
+        if (puntos.length > 0) {
+          setPuntosAtencionFisicos([...puntosAtencionFisicos, ...puntos]);
+        }
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoadingAI(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -119,13 +154,31 @@ export default function PuntosCuidadoPage({ params }: PageProps) {
           {/* Puntos de Atención Físicos */}
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-blue-600" />
-                <CardTitle>Puntos de Atención Físicos</CardTitle>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-blue-600" />
+                  <div>
+                    <CardTitle>Puntos de Atención Físicos</CardTitle>
+                    <CardDescription>
+                      Ubicaciones donde se brinda atención: clínicas, hospitales, hogar, etc.
+                    </CardDescription>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={generarPuntosIA}
+                  disabled={loadingAI}
+                >
+                  {loadingAI ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Sparkles className="w-4 h-4 mr-2" />
+                  )}
+                  Generar con IA
+                </Button>
               </div>
-              <CardDescription>
-                Ubicaciones donde se brinda atención: clínicas, hospitales, hogar, etc.
-              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid md:grid-cols-3 gap-3">
