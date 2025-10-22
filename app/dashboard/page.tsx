@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlusCircle, User, Users, Activity, List } from 'lucide-react';
-import AIAssistant from '@/app/components/AIAssistant';
+import AIAssistant from '@/components/AIAssistant';
 
 export default async function DashboardPage() {
   const { userId } = await auth();

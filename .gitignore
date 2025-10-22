@@ -41,3 +41,9 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+ecosystem.sonia.config.js
+ecosystem.config.js
+.env
+backups/
+*.backup
+fix-ai-chat.sh

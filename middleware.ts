@@ -4,6 +4,7 @@ const isPublicRoute = createRouteMatcher([
   '/',
   '/sign-in(.*)',
   '/sign-up(.*)',
+  '/api/ai/chat(.*)',  // Permitir API de chat (requiere auth interna)
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
