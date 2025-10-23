@@ -1,162 +1,293 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
+import { auth } from '@clerk/nextjs/server';
 import { prisma } from '@/lib/prisma';
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-export async function POST(request: Request) {
+// Función mejorada para detectar consultas sobre pacientes
+function detectarConsultaPaciente(message: string): { 
+  tipo: 'buscar_paciente' | 'info_general', 
+  nombrePaciente?: string,
+  buscarTodos?: boolean 
+} {
+  const lowerMessage = message.toLowerCase();
+  
+  // Palabras clave que indican búsqueda de pacientes
+  const palabrasClaveBusqueda = [
+    'paciente', 'edad', 'años', 'teléfono', 'telefono', 'contacto',
+    'medicamento', 'medicina', 'toma', 'cita', 'consulta',
+    'diagnóstico', 'diagnostico', 'enfermedad', 'condición',
+    'tratamiento', 'terapia', 'información', 'informacion',
+    'datos', 'dime', 'muestra', 'cuál', 'cual', 'quién', 'quien',
+    'cuándo', 'cuando', 'dónde', 'donde', 'metas', 'objetivos'
+  ];
+
+  // Detectar si pregunta por todos los pacientes
+  const preguntaTodos = [
+    'qué pacientes', 'que pacientes', 'cuántos pacientes', 'cuantos pacientes',
+    'mis pacientes', 'todos los pacientes', 'lista de pacientes',
+    'mostrar pacientes', 'listar pacientes'
+  ];
+
+  if (preguntaTodos.some(frase => lowerMessage.includes(frase))) {
+    return { tipo: 'buscar_paciente', buscarTodos: true };
+  }
+
+  // Buscar nombres propios en el mensaje (palabras con mayúscula inicial)
+  const palabras = message.split(/\s+/);
+  const nombresEncontrados: string[] = [];
+  
+  for (let i = 0; i < palabras.length; i++) {
+    const palabra = palabras[i].trim();
+    // Si empieza con mayúscula y tiene más de 2 letras
+    if (palabra.length > 2 && /^[A-ZÁÉÍÓÚÑ]/.test(palabra)) {
+      // Incluir también la siguiente palabra si también empieza con mayúscula
+      let nombreCompleto = palabra;
+      if (i + 1 < palabras.length && /^[A-ZÁÉÍÓÚÑ]/.test(palabras[i + 1])) {
+        nombreCompleto += ' ' + palabras[i + 1];
+        i++; // Saltar la siguiente palabra
+      }
+      nombresEncontrados.push(nombreCompleto);
+    }
+  }
+
+  // Si encontramos nombres y hay palabras clave de búsqueda
+  const tienePalabraClave = palabrasClaveBusqueda.some(palabra => lowerMessage.includes(palabra));
+  
+  if (nombresEncontrados.length > 0 && tienePalabraClave) {
+    return {
+      tipo: 'buscar_paciente',
+      nombrePaciente: nombresEncontrados[0]
+    };
+  }
+
+  // Si solo hay palabras clave pero no nombre específico
+  if (tienePalabraClave) {
+    return { tipo: 'buscar_paciente', buscarTodos: true };
+  }
+
+  return { tipo: 'info_general' };
+}
+
+// Función para buscar paciente por nombre
+async function buscarPaciente(nombre: string, userId: string) {
   try {
-    // Verificar autenticación
-    const { userId } = await auth();
+    console.log(`[AI Chat] Buscando paciente con nombre: "${nombre}"`);
     
+    const pacientes = await prisma.patient.findMany({
+      where: {
+        userId,
+        nombre: {
+          contains: nombre,
+          mode: 'insensitive'
+        }
+      },
+      include: {
+        treatments: {
+          where: { activo: true },
+          orderBy: { updatedAt: 'desc' },
+          take: 1
+        }
+      },
+      take: 5
+    });
+
+    console.log(`[AI Chat] Encontrados ${pacientes.length} paciente(s)`);
+    return pacientes;
+  } catch (error) {
+    console.error('Error buscando paciente:', error);
+    return [];
+  }
+}
+
+// Función para obtener todos los pacientes
+async function obtenerTodosPacientes(userId: string) {
+  try {
+    console.log('[AI Chat] Obteniendo todos los pacientes del usuario');
+    
+    const pacientes = await prisma.patient.findMany({
+      where: { userId },
+      include: {
+        treatments: {
+          where: { activo: true },
+          orderBy: { updatedAt: 'desc' },
+          take: 1
+        }
+      },
+      take: 20,
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    console.log(`[AI Chat] Total de pacientes: ${pacientes.length}`);
+    return pacientes;
+  } catch (error) {
+    console.error('Error obteniendo pacientes:', error);
+    return [];
+  }
+}
+
+// Función para formatear información del paciente
+function formatearInfoPaciente(paciente: any): string {
+  const info: string[] = [];
+  
+  info.push(`**${paciente.nombre}**`);
+  info.push(`- Edad: ${paciente.edad} años`);
+  if (paciente.genero) info.push(`- Género: ${paciente.genero}`);
+  if (paciente.telefono) info.push(`- Teléfono: ${paciente.telefono}`);
+  if (paciente.email) info.push(`- Email: ${paciente.email}`);
+  if (paciente.situacionSocial) info.push(`- Situación Social: ${paciente.situacionSocial}`);
+  if (paciente.situacionEconomica) info.push(`- Situación Económica: ${paciente.situacionEconomica}`);
+  if (paciente.contextoCultural) info.push(`- Contexto Cultural: ${paciente.contextoCultural}`);
+  if (paciente.ocupacionAnterior) info.push(`- Ocupación Anterior: ${paciente.ocupacionAnterior}`);
+  
+  // Valores personales
+  if (paciente.valoresPersonales && Array.isArray(paciente.valoresPersonales) && paciente.valoresPersonales.length > 0) {
+    info.push(`- Valores: ${paciente.valoresPersonales.join(', ')}`);
+  }
+  
+  // Preocupaciones
+  if (paciente.preocupaciones && Array.isArray(paciente.preocupaciones) && paciente.preocupaciones.length > 0) {
+    info.push(`- Preocupaciones: ${paciente.preocupaciones.join(', ')}`);
+  }
+
+  // Esperanzas
+  if (paciente.esperanzas && Array.isArray(paciente.esperanzas) && paciente.esperanzas.length > 0) {
+    info.push(`- Esperanzas: ${paciente.esperanzas.join(', ')}`);
+  }
+
+  // Información del tratamiento
+  if (paciente.treatments && paciente.treatments.length > 0) {
+    const tratamiento = paciente.treatments[0];
+    
+    if (tratamiento.metasPersonales && Array.isArray(tratamiento.metasPersonales) && tratamiento.metasPersonales.length > 0) {
+      info.push(`- Metas Personales: ${tratamiento.metasPersonales.join(', ')}`);
+    }
+    
+    if (tratamiento.calidadVidaDeseada) {
+      info.push(`- Calidad de Vida Deseada: ${tratamiento.calidadVidaDeseada}`);
+    }
+
+    // Metas clínicas
+    if (tratamiento.metasClinicas && Array.isArray(tratamiento.metasClinicas) && tratamiento.metasClinicas.length > 0) {
+      const metas = tratamiento.metasClinicas.map((m: any) => 
+        `${m.objetivo || m.tipo}: ${m.valor || m.descripcion || m.meta}`
+      ).join(', ');
+      info.push(`- Metas Clínicas: ${metas}`);
+    }
+  }
+
+  return info.join('\n');
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    console.log('[AI Chat] Nueva solicitud recibida');
+    
+    const { userId } = await auth();
     if (!userId) {
-      console.error('[AI Chat] Usuario no autenticado');
+      console.log('[AI Chat] Usuario no autenticado');
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
       );
     }
 
-    const body = await request.json();
-    const { message, patientId, context } = body;
+    console.log('[AI Chat] Procesando mensaje para usuario:', userId);
 
-    if (!message || typeof message !== 'string') {
-      console.error('[AI Chat] Mensaje inválido:', message);
+    const body = await request.json();
+    const { message, context } = body;
+
+    if (!message) {
       return NextResponse.json(
         { error: 'Mensaje requerido' },
         { status: 400 }
       );
     }
 
-    console.log('[AI Chat] Procesando mensaje para usuario:', userId);
+    console.log('[AI Chat] Mensaje recibido:', message);
 
-    // Construir contexto del paciente si se proporciona patientId
-    let patientContext = '';
-    if (patientId) {
-      try {
-        const patient = await prisma.patient.findUnique({
-          where: { id: patientId },
-          include: {
-            tratamientos: {
-              where: { activo: true },
-              take: 1,
-            },
-          },
-        });
+    // Detectar tipo de consulta
+    const consulta = detectarConsultaPaciente(message);
+    console.log('[AI Chat] Análisis de consulta:', consulta);
 
-        if (patient && patient.clerkUserId === userId) {
-          patientContext = `
-Contexto del Paciente:
-- Nombre: ${patient.nombre}
-- Edad: ${patient.edad} años
-- Situación Social: ${patient.situacionSocial || 'No especificada'}
-- Valores: ${patient.valoresPersonales.join(', ')}
-- Preocupaciones: ${patient.preocupaciones.join(', ')}
-- Esperanzas: ${patient.esperanzas.join(', ')}
-`;
-          console.log('[AI Chat] Contexto del paciente cargado para:', patient.nombre);
-        }
-      } catch (patientError) {
-        console.error('[AI Chat] Error al cargar paciente:', patientError);
-        // Continuar sin contexto de paciente
+    let contextoDB = '';
+    
+    // Si es consulta sobre paciente, buscar en BD
+    if (consulta.tipo === 'buscar_paciente') {
+      let pacientes: any[] = [];
+      
+      if (consulta.buscarTodos) {
+        console.log('[AI Chat] Buscando todos los pacientes');
+        pacientes = await obtenerTodosPacientes(userId);
+      } else if (consulta.nombrePaciente) {
+        console.log('[AI Chat] Buscando paciente específico:', consulta.nombrePaciente);
+        pacientes = await buscarPaciente(consulta.nombrePaciente, userId);
+      } else {
+        // Si no hay nombre específico, buscar todos
+        console.log('[AI Chat] No se detectó nombre, buscando todos');
+        pacientes = await obtenerTodosPacientes(userId);
+      }
+
+      if (pacientes.length > 0) {
+        console.log(`[AI Chat] Encontrados ${pacientes.length} paciente(s), generando contexto`);
+        contextoDB = '\n\n**INFORMACIÓN DE PACIENTES EN LA BASE DE DATOS:**\n\n';
+        contextoDB += pacientes.map(p => formatearInfoPaciente(p)).join('\n\n---\n\n');
+      } else {
+        console.log('[AI Chat] No se encontraron pacientes');
+        contextoDB = '\n\n**NOTA:** No se encontraron pacientes' + 
+          (consulta.nombrePaciente ? ` con el nombre "${consulta.nombrePaciente}"` : '') + 
+          ' en la base de datos.';
       }
     }
 
-    const systemPrompt = `Eres sonIA, un asistente médico especializado en ayudar a cuidadores a gestionar el tratamiento usando el Lienzo de Tratamiento Centrado en el Paciente (LTCP).
+    // Construir prompt con contexto
+    const systemPrompt = `Eres un asistente especializado en cuidados paliativos para la plataforma SONIA (Sistema de Optimización para Navegación Integral Avanzada en salud).
 
-El LTCP tiene 9 bloques organizados en 3 categorías:
+${contextoDB}
 
-**Núcleo del Paciente:**
-1. Perfil y Contexto del Paciente
-2. Metas de Salud
-3. Relación de Cuidado
-4. Puntos de Cuidado
-
-**Infraestructura:**
-5. Actividades Clave
-6. Recursos Clave
-7. Equipo de Cuidado
-
-**Economía:**
-8. Cargas y Costos
-9. Resultados Positivos
-
-Tu rol es:
-- Ayudar a completar cada bloque del LTCP
-- Hacer preguntas relevantes para obtener información importante
-- Ser empático y comprensivo
-- Proporcionar orientación basada en mejores prácticas de cuidados paliativos
-- IMPORTANTE: NO eres un médico. Siempre recomienda consultar con profesionales de salud para decisiones médicas
-
-${patientContext}
-
-Contexto adicional: ${context || 'Ninguno'}
-
-Responde SIEMPRE en español, de manera clara, concisa y compasiva.`;
-
-    // Validar que la API key de Groq existe
-    if (!process.env.GROQ_API_KEY) {
-      console.error('[AI Chat] GROQ_API_KEY no configurada');
-      return NextResponse.json(
-        { error: 'Configuración del servidor incompleta' },
-        { status: 500 }
-      );
-    }
+INSTRUCCIONES:
+- Si tienes información de pacientes arriba, úsala para responder las preguntas
+- Sé conciso, claro y empático
+- Si la pregunta es sobre un paciente específico y tienes sus datos, responde con esa información
+- Si no tienes la información, dilo claramente y pregunta si quieren agregar esa información al sistema
+- Ofrece ayuda para completar el LTCP (Lienzo de Tratamiento Centrado en el Paciente)
+- Usa un tono profesional pero cálido y cercano`;
 
     console.log('[AI Chat] Llamando a Groq API...');
 
-    // Llamar a Groq API
-    const chatCompletion = await groq.chat.completions.create({
+    const completion = await groq.chat.completions.create({
       messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: message },
+        {
+          role: 'system',
+          content: systemPrompt
+        },
+        {
+          role: 'user',
+          content: context ? `${context}\n\n${message}` : message
+        }
       ],
       model: 'llama-3.3-70b-versatile',
-      temperature: 0.7,
+      temperature: 0.5,
       max_tokens: 1024,
-      top_p: 1,
     });
 
-    const assistantMessage = chatCompletion.choices[0]?.message?.content ||
-      'Lo siento, no pude generar una respuesta. Por favor, intenta de nuevo.';
-
+    const aiMessage = completion.choices[0]?.message?.content || 'No pude generar una respuesta.';
+    
     console.log('[AI Chat] Respuesta generada exitosamente');
 
-    return NextResponse.json({
-      message: assistantMessage,
-      usage: chatCompletion.usage,
+    return NextResponse.json({ 
+      message: aiMessage,
+      pacientesEncontrados: consulta.tipo === 'buscar_paciente'
     });
 
-  } catch (error: any) {
-    console.error('[AI Chat] Error completo:', error);
-    console.error('[AI Chat] Stack trace:', error.stack);
-    
-    // Manejo de errores específicos
-    let errorMessage = 'Error al procesar tu mensaje';
-    let statusCode = 500;
-
-    if (error.message?.includes('API key')) {
-      errorMessage = 'Error de configuración del servicio de IA';
-      console.error('[AI Chat] Error de API key de Groq');
-    } else if (error.message?.includes('rate limit')) {
-      errorMessage = 'Servicio temporalmente sobrecargado. Intenta de nuevo en unos segundos';
-      statusCode = 429;
-    } else if (error.message?.includes('timeout')) {
-      errorMessage = 'El servicio tardó demasiado en responder. Intenta de nuevo';
-      statusCode = 504;
-    } else if (error.message?.includes('network') || error.code === 'ECONNREFUSED') {
-      errorMessage = 'Error de conexión con el servicio de IA';
-    }
-
+  } catch (error) {
+    console.error('[AI Chat] Error:', error);
     return NextResponse.json(
-      { 
-        error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
-      },
-      { status: statusCode }
+      { error: 'Error al procesar la solicitud' },
+      { status: 500 }
     );
   }
 }
